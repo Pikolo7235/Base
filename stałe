@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract MojeBaseNFT is ERC721, Ownable {
+    uint256 private _nextTokenId;
+    
+    uint256 public constant MAX_SUPPLY = 1000; 
+    uint256 public constant MAX_PER_WALLET = 5;
+    
+    // NOWOŚĆ: Stały link do folderu z metadanymi (zakończony slashem)
+    string private _baseTokenURI;
+
+    mapping(address => uint256) public addressMintedBalance;
+
+    constructor(address initialOwner, string memory baseURI) 
+        ERC721("Moja Kolekcja Base", "MNFT") 
+        Ownable(initialOwner) 
+    {
+        _baseTokenURI = baseURI;
+    }
+
+    // Funkcja zwracająca bazowy adres dla wszystkich tokenów
+    function _baseURI() internal view override returns (string memory) {
+        return _baseTokenURI;
+    }
+
+    // Uproszczona funkcja mintowania - nie wymaga podawania URI
+    function freeMint() public {
+        require(_nextTokenId < MAX_SUPPLY, "Kolekcja wyprzedana!");
+        require(addressMintedBalance[msg.sender] < MAX_PER_WALLET, "Limit na portfel");
+
+        uint256 tokenId = _nextTokenId++;
+        addressMintedBalance[msg.sender]++;
+        _safeMint(msg.sender, tokenId);
+    }
+
+    // Funkcja pozwalająca właścicielowi zmienić Base URI (np. w razie błędu)
+    function setBaseURI(string memory newBaseURI) public onlyOwner {
+        _baseTokenURI = newBaseURI;
+    }
+}
