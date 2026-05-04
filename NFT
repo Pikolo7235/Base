@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract MojeBaseNFT is ERC721URIStorage, Ownable {
+    uint256 private _nextTokenId;
+    
+    // NOWOŚĆ: Parametry kolekcji
+    uint256 public constant MAX_SUPPLY = 1000; // Maksymalnie 1000 sztuk
+    uint256 public mintPrice = 0.001 ether;   // Cena za 1 NFT (ok. 3-4 USD na Base)
+
+    constructor(address initialOwner) 
+        ERC721("Moja Kolekcja Base", "MNFT") 
+        Ownable(initialOwner) 
+    {}
+
+    // ZMIANA: Funkcja jest teraz publiczna (każdy może kupić) i wymaga zapłaty (payable)
+    function publicMint(string memory uri) public payable {
+        require(_nextTokenId < MAX_SUPPLY, "Kolekcja wyprzedana!");
+        require(msg.value >= mintPrice, "Przeslano za malo ETH");
+
+        uint256 tokenId = _nextTokenId++;
+        _safeMint(msg.sender, tokenId);
+        _setTokenURI(tokenId, uri);
+    }
+
+    // NOWOŚĆ: Funkcja do wyciągania zarobionych środków z kontraktu
+    function withdraw() public onlyOwner {
+        payable(owner()).transfer(address(this).balance);
+    }
+}
