@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract MojeBaseNFT is ERC721URIStorage, Ownable {
+    uint256 private _nextTokenId;
+
+    uint256 public constant MAX_SUPPLY = 1000;
+    uint256 public constant MAX_PER_WALLET = 5;
+
+    uint256 public mintPrice = 0.001 ether; // cena za płatne mintowanie
+
+    mapping(address => uint256) public addressMintedBalance;
+
+    // Eventy
+    event Minted(address indexed minter, uint256 tokenId, bool isFree);
+
+    constructor(address initialOwner) 
+        ERC721("Moja Kolekcja Base", "MNFT") 
+        Ownable(initialOwner) 
+    {}
+
+    // === DARMOWE MINT ===
+    function freeMint(string memory uri) public {
+        require(_nextTokenId < MAX_SUPPLY, "Kolekcja wyprzedana!");
+        require(addressMintedBalance[msg.sender] < MAX_PER_WALLET, "Osiagnales limit na portfel");
+
+        _mintToken(msg.sender, uri, true);
+    }
+
+    // === PŁATNE MINT ===
+    function paidMint(string memory uri) public payable {
+        require(_nextTokenId < MAX_SUPPLY, "Kolekcja wyprzedana!");
+        require(msg.value >= mintPrice, "Za malo ETH");
+        require(addressMintedBalance[msg.sender] < MAX_PER_WALLET, "Osiagnales limit na portfel");
+
+        _mintToken(msg.sender, uri, false);
+    }
+
+    // === MINT DLA OWNERA (giveaway) ===
+    function ownerMint(address to, string memory uri, uint256 quantity) public onlyOwner {
+        require(_nextTokenId + quantity <= MAX_SUPPLY, "Przekroczono maksymalny supply");
+
+        for (uint256 i = 0; i < quantity; i++) {
+            _mintToken(to, uri, false);
+        }
+    }
+
+    // Wewnętrzna funkcja mintowania
+    function _mintToken(address to, string memory uri, bool isFree) internal {
+        uint256 tokenId = _nextTokenId++;
+        addressMintedBalance[to]++;
+        
+        _safeMint(to, tokenId);
+        _setTokenURI(tokenId, uri);
+
+        emit Minted(to, tokenId, isFree);
+    }
+
+    // === WIDOKI ===
+    function totalSupply() public view returns (uint256) {
+        return _nextTokenId;
+    }
+
+    function remainingSupply() public view returns (uint256) {
+        return MAX_SUPPLY - _nextTokenId;
+    }
+
+    // === FUNKCJE DLA OWNERA ===
+    function setMintPrice(uint256 newPrice) external onlyOwner {
+        mintPrice = newPrice;
+    }
+
+    function withdraw() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
+    }
+}
